@@ -5,6 +5,9 @@ var FB = require('../connectors/facebook')
 var Wit = require('node-wit').Wit
 var request = require('request')
 var Promise = require('promise')
+var HttpsProxyAgent = require('https-proxy-agent')
+var proxy = 'http://127.0.0.1:3128'
+var agent = new HttpsProxyAgent(proxy);
 
 var firstEntityValue = function (entities, entity) {
 	var val = entities && entities[entity] &&
@@ -79,12 +82,14 @@ var actions = {
 	// list of functions Wit.ai can execute
 	['fetch-weather'](sessionId, context, cb) {
 		// Here we can place an API call to a weather service
+
 		 if (context.loc) {
 		 	getWeather(context.loc)
 		 		.then(function (response) {
-		 			if(response){
-		 				var forecast = JSON.parse(response);
-		 				context.forecast = forecast.weather[0].description;
+		 			if(response.orderStatus){
+		 				context.forecast = "Order ID:"+ response.orderId + ": " +response.orderStatusDesc
+		 			}else{
+		 				context.forecast = response;
 		 			}
 		 				
 		 			cb(context);
@@ -92,10 +97,11 @@ var actions = {
 		 		.catch(function (err) {
 		 			console.log(err)
 		 		})
-		//context.forecast = 'Sunny'
-        //cb(context)
 		 }
 
+		//context.forecast = 'Sunny'
+
+		//cb(context)
 	},
 
 	['fetch-pics'](sessionId, context, cb) {
@@ -129,10 +135,22 @@ var getWeather = function (location) {
 		var d = new Date();
 		var n = d.getTime();
 		//var url = 'https://query.yahooapis.com/v1/public/yql?q=select%20*%20from%20weather.forecast%20where%20woeid%20in%20(select%20woeid%20from%20geo.places(1)%20where%20text%3D%22'+ location +'%22)&format=json&t='+n;
-		var url = 'http://api.openweathermap.org/data/2.5/weather?q='+location+'&appid=35f3fec0cb1dbf46103d07f6ee69163a';
-		request(url, function (error, response, body) {
+		var url = 'http://dlcenovap01.nonprod.avaya.com/dmp2/orderDetails?orderId='+location+'&'+n;
+		
+		var params = {
+			'uri': url,
+    		'method': "GET",
+    		'headers': {
+        		'content-type': 'application/x-www-form-urlencoded'
+    		},
+    		'agent': agent,
+		};
+		
+		request(params, function (error, response, body) {
 			if(!error)
 		    	return resolve(body)
+		    else
+		    	return resolve(url);
 			})
 	})
 }
